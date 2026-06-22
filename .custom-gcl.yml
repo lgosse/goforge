@@ -1,0 +1,7 @@
+version: v2.12.2
+name: custom-gcl
+destination: ./bin
+plugins:
+  - module: gitlab.side.co/pkg/linters
+    import: gitlab.side.co/pkg/linters/plugin
+    version: v1.0.1

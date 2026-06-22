@@ -1,0 +1,126 @@
+version: "2"
+run:
+  concurrency: 1
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+linters:
+  disable:
+    - nakedret
+  enable:
+    - bodyclose
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unconvert
+    - gochecknoinits
+    - govet
+    - gosec
+    - misspell
+    - prealloc
+    - revive
+    - unconvert
+    - unparam
+    - unused
+  settings:
+    custom:
+      pandorahttpclient:
+        type: module
+        description: Prefer Pandora over URL/APIKey for internal HTTP clients that expose Pandora
+    govet:
+      enable:
+        - nilness
+    revive:
+      max-open-files: 2048
+      confidence: 0.1
+      severity: error
+      rules:
+        - name: blank-imports
+          disabled: false
+        - name: context-as-argument
+          disabled: false
+        - name: context-keys-type
+          disabled: false
+        - name: dot-imports
+          disabled: false
+        - name: error-return
+          disabled: false
+        - name: error-strings
+          disabled: false
+        - name: error-naming
+          disabled: false
+        - name: exported
+          disabled: false
+        - name: increment-decrement
+          disabled: false
+        - name: var-naming
+          disabled: false
+          arguments:
+            - []
+            - []
+            - - skip-package-name-collision-with-go-std: true
+        - name: var-declaration
+          disabled: false
+        - name: package-comments
+          disabled: false
+        - name: range
+          disabled: false
+        - name: receiver-naming
+          disabled: false
+        - name: time-naming
+          disabled: false
+        - name: unexported-return
+          disabled: true
+        - name: indent-error-flow
+          disabled: false
+        - name: errorf
+          disabled: false
+        - name: empty-block
+          disabled: false
+        - name: superfluous-else
+          disabled: false
+        - name: unused-parameter
+          disabled: false
+        - name: unreachable-code
+          disabled: false
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - gci
+  settings:
+    goimports:
+      local-prefixes:
+        - gitlab.side.co
+    gci:
+      sections:
+        - standard                           # Standard library imports
+        - default                            # Third-party imports
+        - prefix(gitlab.side.co/grpc-protos) # Other
+        - prefix(gitlab.side.co/Library)     # Other
+        - prefix(gitlab.side.co/Services)    # External services imports
+        - localmodule                        # Local module imports
+        - prefix(gitlab.side.co/pkg)         # Internal libraries imports
+        - prefix(gitlab.side.co/Operations)  # Internal libraries imports
+      custom-order: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
