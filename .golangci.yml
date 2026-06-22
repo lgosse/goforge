@@ -26,10 +26,6 @@ linters:
     - unparam
     - unused
   settings:
-    custom:
-      pandorahttpclient:
-        type: module
-        description: Prefer Pandora over URL/APIKey for internal HTTP clients that expose Pandora
     govet:
       enable:
         - nilness

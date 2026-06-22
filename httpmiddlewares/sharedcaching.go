@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	sharedCachingMiddlewareName = "shared caching"
+	sharedCachingMiddlewareName = "sharedcaching"
 )
 
 type sharedCacheStore interface {
@@ -57,7 +57,7 @@ type sharedCachingResponseRecorder struct {
 	flushed     bool
 }
 
-// SharedCaching caches explicit public GET responses in Redis and serves stale entries while it revalidates them in the background.
+// SharedCachingMiddleware caches explicit public GET responses in Redis and serves stale entries while it revalidates them in the background.
 //
 // Example:
 //
@@ -65,7 +65,7 @@ type sharedCachingResponseRecorder struct {
 //		w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=30")
 //		sidehttp.Respond(w, myrawpayload, nil)
 //	})
-func SharedCaching(logger *slog.Logger, subdomain string, redisClient *redis.Client, opts ...middlewareOption) func(http.Handler) http.Handler {
+func SharedCachingMiddleware(logger *slog.Logger, subdomain string, redisClient *redis.Client, opts ...middlewareOption) func(http.Handler) http.Handler {
 	var options middlewareOptions
 	for _, opt := range opts {
 		opt(&options)
@@ -117,7 +117,7 @@ func sharedCaching(logger *slog.Logger, subdomain string, store sharedCacheStore
 			cacheKey := buildSharedCacheKey(subdomain, r)
 			logger := goforge.LoggerFromContext(ctx).With(
 				slog.String("middleware", sharedCachingMiddlewareName),
-				slog.String("cache_key", cacheKey),
+				slog.Group("cache", slog.String("key", cacheKey)),
 			)
 
 			requestNoCache := false
@@ -149,8 +149,7 @@ func sharedCaching(logger *slog.Logger, subdomain string, store sharedCacheStore
 						requestAcceptsAnyStale = true
 					case "max-age":
 						hasRequestMaxAge = true
-						logger.Error(
-							"max-age requires a strictly positive integer value",
+						logger.Error("max-age requires a strictly positive integer value", slog.Group("cache", slog.String("cache_operation", "request_policy")),
 							slog.String("cache_operation", "request_policy"),
 						)
 					}
@@ -162,7 +161,7 @@ func sharedCaching(logger *slog.Logger, subdomain string, store sharedCacheStore
 				if err != nil {
 					logger.Error(
 						"invalid cache directive value",
-						slog.String("cache_operation", "request_policy"),
+						slog.Group("cache", slog.String("operation", "request_policy")),
 						slog.String("directive", key),
 						slog.String("value", value),
 						slog.Any("error", err),
@@ -179,7 +178,7 @@ func sharedCaching(logger *slog.Logger, subdomain string, store sharedCacheStore
 				if seconds < 0 {
 					logger.Error(
 						"cache directive value must be non-negative",
-						slog.String("cache_operation", "request_policy"),
+						slog.Group("cache", slog.String("operation", "request_policy")),
 						slog.String("directive", key),
 						slog.String("value", value),
 					)
@@ -206,9 +205,7 @@ func sharedCaching(logger *slog.Logger, subdomain string, store sharedCacheStore
 			// #The cache lookup happens before the handler so repeated public reads can skip all downstream work when a shared response already exists.
 			rawEntry, err := store.Get(ctx, cacheKey)
 			if err != nil && !errors.Is(err, redis.Nil) {
-				logger.Error(
-					"shared cache error",
-					slog.String("cache_operation", "lookup"),
+				logger.Error("shared cache error", slog.Group("cache", slog.String("operation", "lookup")),
 					slog.Any("error", err),
 				)
 			}
@@ -218,21 +215,15 @@ func sharedCaching(logger *slog.Logger, subdomain string, store sharedCacheStore
 
 				// #Corrupted or unsafe cache entries are ignored so the request falls back to the handler instead of serving something untrustworthy.
 				if err := json.Unmarshal([]byte(rawEntry), &cachedEntry); err != nil {
-					logger.Error(
-						"shared cache error",
-						slog.String("cache_operation", "decode"),
+					logger.Error("shared cache error", slog.Group("cache", slog.String("operation", "decode")),
 						slog.Any("error", err),
 					)
 				} else if cachedEntry.MaxAgeSeconds < 0 || cachedEntry.StaleWhileRevalidateSeconds < 0 {
-					logger.Error(
-						"shared cache error",
-						slog.String("cache_operation", "decode"),
+					logger.Error("shared cache error", slog.Group("cache", slog.String("operation", "decode")),
 						slog.Any("error", fmt.Errorf("cached shared response contains invalid cache lifetime metadata")),
 					)
 				} else if len(cachedEntry.Header.Values("Set-Cookie")) > 0 {
-					logger.Error(
-						"shared cache error",
-						slog.String("cache_operation", "decode"),
+					logger.Error("shared cache error", slog.Group("cache", slog.String("operation", "decode")),
 						slog.Any("error", fmt.Errorf("cached shared response contains Set-Cookie header")),
 					)
 				} else {
@@ -269,25 +260,22 @@ func sharedCaching(logger *slog.Logger, subdomain string, store sharedCacheStore
 						w.WriteHeader(statusCode)
 						if len(cachedEntry.Body) > 0 {
 							if _, err := w.Write(cachedEntry.Body); err != nil {
-								logger.Error(
-									"shared cache error",
-									slog.String("cache_operation", "serve"),
+								logger.Error("shared cache error", slog.Group("cache", slog.String("operation", "write_response")),
 									slog.Any("error", err),
 								)
 								return
 							}
 						}
 
-						logger.Info(
-							"shared cache hit",
-							slog.String("cache_operation", "serve"),
-							slog.String("cache_state", "hit"),
-							slog.String("cache_freshness", freshness),
-							slog.Int("cache_age_seconds", int(age/time.Second)),
-							slog.Int("cache_max_age_seconds", cachedEntry.MaxAgeSeconds),
-							slog.Int("cache_stale_while_revalidate_seconds", cachedEntry.StaleWhileRevalidateSeconds),
-							slog.Bool("cache_revalidation_triggered", shouldRevalidate),
-						)
+						logger.Info("shared cache hit", slog.Group("cache",
+							slog.String("operation", "serve"),
+							slog.String("state", "hit"),
+							slog.String("freshness", freshness),
+							slog.Int("age_seconds", int(age/time.Second)),
+							slog.Int("max_age_seconds", cachedEntry.MaxAgeSeconds),
+							slog.Int("stale_while_revalidate_seconds", cachedEntry.StaleWhileRevalidateSeconds),
+							slog.Bool("revalidation_triggered", shouldRevalidate),
+						))
 
 						if shouldRevalidate && !requestNoStore {
 							// #Serving stale data keeps latency flat while the background refresh prevents many callers from stampeding the source at once.
@@ -315,9 +303,7 @@ func sharedCaching(logger *slog.Logger, subdomain string, store sharedCacheStore
 			w.WriteHeader(recorder.StatusCode())
 			if recorder.body.Len() > 0 {
 				if _, err := w.Write(recorder.body.Bytes()); err != nil {
-					logger.Error(
-						"shared cache error",
-						slog.String("cache_operation", "write_response"),
+					logger.Error("shared cache error", slog.Group("cache", slog.String("operation", "write_response")),
 						slog.Any("error", err),
 					)
 					return
@@ -407,17 +393,13 @@ func storeSharedCacheResponse(ctx context.Context, logger *slog.Logger, store sh
 		value = strings.Trim(strings.TrimSpace(value), `"`)
 		seconds, err := strconv.Atoi(value)
 		if err != nil {
-			logger.Error(
-				"shared cache error",
-				slog.String("cache_operation", operation+"_policy"),
+			logger.Error("shared cache error", slog.Group("cache", slog.String("operation", operation+"_policy")),
 				slog.Any("error", fmt.Errorf("invalid %s value %q: %w", key, value, err)),
 			)
 			return
 		}
 		if seconds < 0 {
-			logger.Error(
-				"shared cache error",
-				slog.String("cache_operation", operation+"_policy"),
+			logger.Error("shared cache error", slog.Group("cache", slog.String("operation", operation+"_policy")),
 				slog.Any("error", fmt.Errorf("%s must be non-negative", key)),
 			)
 			return
@@ -454,18 +436,14 @@ func storeSharedCacheResponse(ctx context.Context, logger *slog.Logger, store sh
 
 	payload, err := json.Marshal(entry)
 	if err != nil {
-		logger.Error(
-			"shared cache error",
-			slog.String("cache_operation", operation),
+		logger.Error("shared cache error", slog.Group("cache", slog.String("operation", operation)),
 			slog.Any("error", err),
 		)
 		return
 	}
 
 	if err := store.Set(ctx, cacheKey, string(payload), ttl); err != nil {
-		logger.Error(
-			"shared cache error",
-			slog.String("cache_operation", operation),
+		logger.Error("shared cache error", slog.Group("cache", slog.String("operation", operation)),
 			slog.Any("error", err),
 		)
 	}
