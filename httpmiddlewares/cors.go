@@ -74,7 +74,7 @@ type CORSConfig struct {
 
 // CORSMiddleware returns middleware that applies CORS response headers and
 // handles browser preflight requests.
-func CORSMiddleware(config CORSConfig, opts ...middlewareOption) func(http.Handler) http.Handler {
+func CORSMiddleware(config CORSConfig, opts ...MiddlewareOption) func(http.Handler) http.Handler {
 	var options middlewareOptions
 	for _, opt := range opts {
 		opt(&options)

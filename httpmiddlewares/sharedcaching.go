@@ -65,7 +65,7 @@ type sharedCachingResponseRecorder struct {
 //		w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=30")
 //		sidehttp.Respond(w, myrawpayload, nil)
 //	})
-func SharedCachingMiddleware(logger *slog.Logger, subdomain string, redisClient *redis.Client, opts ...middlewareOption) func(http.Handler) http.Handler {
+func SharedCachingMiddleware(logger *slog.Logger, subdomain string, redisClient *redis.Client, opts ...MiddlewareOption) func(http.Handler) http.Handler {
 	var options middlewareOptions
 	for _, opt := range opts {
 		opt(&options)

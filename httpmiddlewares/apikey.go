@@ -9,7 +9,7 @@ import (
 )
 
 // APIKeyMiddleware checks if the caller if authorized to contact the service.
-func APIKeyMiddleware(apikey string, opts ...middlewareOption) func(http.Handler) http.Handler {
+func APIKeyMiddleware(apikey string, opts ...MiddlewareOption) func(http.Handler) http.Handler {
 	var options middlewareOptions
 	for _, opt := range opts {
 		opt(&options)

@@ -21,9 +21,11 @@ func (o *middlewareOptions) shouldExclude(r *http.Request) bool {
 	return false
 }
 
-type middlewareOption func(*middlewareOptions)
+// MiddlewareOption configures the mux patterns on which a middleware runs.
+type MiddlewareOption func(*middlewareOptions)
 
-func WithMuxPatternExclusion(patterns ...string) middlewareOption {
+// WithMuxPatternExclusion prevents a middleware from running for patterns.
+func WithMuxPatternExclusion(patterns ...string) MiddlewareOption {
 	return func(opts *middlewareOptions) {
 		if opts.excludes == nil {
 			opts.excludes = make(map[string]struct{})
@@ -34,7 +36,8 @@ func WithMuxPatternExclusion(patterns ...string) middlewareOption {
 	}
 }
 
-func WithMuxPatternInclusion(patterns ...string) middlewareOption {
+// WithMuxPatternInclusion restricts a middleware to patterns.
+func WithMuxPatternInclusion(patterns ...string) MiddlewareOption {
 	return func(opts *middlewareOptions) {
 		if opts.includes == nil {
 			opts.includes = make(map[string]struct{})

@@ -7,7 +7,7 @@ import (
 	"github.com/lgosse/goforge"
 )
 
-func LoggerMiddleware(logger *slog.Logger, opts ...middlewareOption) func(http.Handler) http.Handler {
+func LoggerMiddleware(logger *slog.Logger, opts ...MiddlewareOption) func(http.Handler) http.Handler {
 	var options middlewareOptions
 	for _, opt := range opts {
 		opt(&options)

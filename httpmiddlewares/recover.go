@@ -14,7 +14,7 @@ const recoverMiddlewareName = "recover"
 // RecoverMiddleware recovers panics, logs the failure through the request
 // logger, and returns a standard goforge internal error when the response has
 // not already started.
-func RecoverMiddleware(opts ...middlewareOption) func(http.Handler) http.Handler {
+func RecoverMiddleware(opts ...MiddlewareOption) func(http.Handler) http.Handler {
 	var options middlewareOptions
 	for _, opt := range opts {
 		opt(&options)
