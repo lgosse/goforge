@@ -14,9 +14,41 @@ type elapsedTracker struct {
 	start time.Time
 }
 
+type requestPatternTracker struct {
+	request *http.Request
+}
+
+type requestRouteAttrsTracker struct {
+	request *http.Request
+}
+
 // LogValue is called by slog right when the log is being written.
 func (e elapsedTracker) LogValue() slog.Value {
 	return slog.DurationValue(time.Since(e.start))
+}
+
+func (t requestPatternTracker) LogValue() slog.Value {
+	if t.request == nil {
+		return slog.StringValue("")
+	}
+
+	return slog.StringValue(t.request.Pattern)
+}
+
+func (t requestRouteAttrsTracker) LogValue() slog.Value {
+	if t.request == nil {
+		return slog.GroupValue(slog.String("route", ""))
+	}
+
+	attrs := []slog.Attr{slog.Any("route", requestPatternTracker{request: t.request})}
+	for _, m := range pathWildcardRe.FindAllStringSubmatch(t.request.Pattern, -1) {
+		key := m[1]
+		if val := t.request.PathValue(key); val != "" {
+			attrs = append(attrs, slog.String(key, val))
+		}
+	}
+
+	return slog.GroupValue(attrs...)
 }
 
 // TrackElapsed is a helper to easily create the attribute
@@ -39,20 +71,10 @@ func AttrsFromRequest(r *http.Request) []any {
 		)
 	}
 
-	// 2. Extract path variables using regex
-	matches := pathWildcardRe.FindAllStringSubmatch(r.Pattern, -1)
-	for _, m := range matches {
-		key := m[1]
-		// 3. Fetch the value natively
-		if val := r.PathValue(key); val != "" {
-			attrs = append(attrs, slog.String(key, val))
-		}
-	}
-
 	attrs = append(
 		attrs,
-		slog.String("route", r.Pattern),
-		// 4. Add the elapsed time since the request started
+		slog.Any("", requestRouteAttrsTracker{request: r}),
+		// 2. Add the elapsed time since the request started
 		slog.Any("elapsed", TrackElapsed()),
 	)
 
