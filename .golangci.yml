@@ -26,6 +26,10 @@ linters:
     - unparam
     - unused
   settings:
+    custom:
+      pandorahttpclient:
+        type: module
+        description: Prefer Pandora over URL/APIKey for internal HTTP clients that expose Pandora
     govet:
       enable:
         - nilness
@@ -94,6 +98,7 @@ linters:
       - third_party$
       - builtin$
       - examples$
+      - frontend/node_modules/.*\.go$
 formatters:
   enable:
     - gofmt
@@ -120,3 +125,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - frontend/node_modules/.*\.go$
