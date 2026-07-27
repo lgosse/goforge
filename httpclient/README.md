@@ -20,7 +20,7 @@ go get github.com/lgosse/goforge/httpclient@latest
 client := httpclient.NewClient(
 	httpclient.WithTimeout(10*time.Second),
 	httpclient.WithAPIKey("X-API-Key", os.Getenv("SERVICE_API_KEY")),
-	httpclient.WithTelemetry(),
+	httpclient.WithTelemetry(telemetry.HTTPClientOptions()...),
 )
 ```
 
@@ -38,6 +38,19 @@ Available options are:
 | `WithOAuth` | Adds cached Bearer authentication |
 | `WithTelemetry` | Instruments outbound calls through OpenTelemetry |
 
+The [`otel`](https://pkg.go.dev/github.com/lgosse/goforge/otel) module constructs
+the explicit providers used here:
+
+```go
+config := forgeotel.DefaultConfig("orders-api", localDevelopment)
+config.OTLP.Endpoint = "otel-collector.internal:4317" // Production only.
+telemetry, err := forgeotel.New(context.Background(), config)
+if err != nil {
+	return err
+}
+defer telemetry.Shutdown(context.Background())
+```
+
 Transport options wrap the transport configured by earlier options. In this
 example, telemetry is outermost:
 
@@ -46,7 +59,7 @@ client := httpclient.NewClient(
 	httpclient.WithTransport(http.DefaultTransport),
 	httpclient.WithAPIKey("X-API-Key", apiKey),
 	httpclient.WithOAuth(tokenProvider, 30*time.Second),
-	httpclient.WithTelemetry(),
+	httpclient.WithTelemetry(telemetry.HTTPClientOptions()...),
 )
 ```
 

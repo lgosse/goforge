@@ -39,8 +39,8 @@ func ExampleNewClient() {
 		httpclient.WithAPIKey("X-API-Key", "secret"),
 		httpclient.WithOAuth(tokenProvider, 30*time.Second),
 
-		// This uses the global OpenTelemetry provider. Applications normally
-		// configure their exporter and provider during process startup.
+		// A service using github.com/lgosse/goforge/otel normally passes
+		// telemetry.HTTPClientOptions()... here.
 		httpclient.WithTelemetry(),
 	)
 

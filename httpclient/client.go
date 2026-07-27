@@ -83,7 +83,8 @@ func WithOAuth(provider TokenProvider, expiryLeeway time.Duration) ClientOption 
 }
 
 // WithTelemetry wraps the current transport with OpenTelemetry
-// instrumentation.
+// instrumentation. The otel module supplies explicit production-ready
+// provider options.
 func WithTelemetry(opts ...otelhttp.Option) ClientOption {
 	return func(client *http.Client) {
 		client.Transport = &TelemetryTransport{
