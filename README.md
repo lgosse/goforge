@@ -1,8 +1,8 @@
-# GoForge
+# goforge
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/lgosse/goforge.svg)](https://pkg.go.dev/github.com/lgosse/goforge)
 
-GoForge is a collection of small, composable Go modules for building HTTP
+goforge is a collection of small, composable Go modules for building HTTP
 services with the standard library. It standardizes recurring service concerns
 without introducing a web framework or hiding the underlying Go APIs.
 
