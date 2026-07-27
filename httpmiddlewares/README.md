@@ -95,6 +95,15 @@ logger.InfoContext(r.Context(), "request handled")
 When OpenTelemetry middleware runs before the logger, request attributes
 include `trace_id` and `span_id`.
 
+The [`otel`](https://pkg.go.dev/github.com/lgosse/goforge/otel) module supplies
+explicit trace and metric providers:
+
+```go
+handler := httpmiddlewares.OpenTelemetryMiddleware(
+	telemetry.HTTPServerOptions()...,
+)(applicationHandler)
+```
+
 ## License
 
 This module is available under the repository's
