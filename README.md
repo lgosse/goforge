@@ -13,6 +13,9 @@ The repository is organized around two primary entry points:
 - **`httpclient`** builds the outbound HTTP stack from `http.Client`,
   composable transports, and a typed JSON executor.
 
+The **`otel`** module configures the traces, metrics, logs, propagation, and
+runtime instrumentation shared by both HTTP stacks.
+
 The root module contains the contracts and primitives shared by those modules:
 structured errors, JSON responses, context-scoped loggers, and endpoint
 registration interfaces.
@@ -28,6 +31,7 @@ Applications only need to depend on the pieces they use.
 | [`chassis`](https://pkg.go.dev/github.com/lgosse/goforge/chassis) | Middleware-aware `http.ServeMux` | Available |
 | [`httpmiddlewares`](https://pkg.go.dev/github.com/lgosse/goforge/httpmiddlewares) | Standard `net/http` middleware | Available |
 | [`httpclient`](https://pkg.go.dev/github.com/lgosse/goforge/httpclient) | Configured HTTP clients and typed JSON calls | Available |
+| [`otel`](https://pkg.go.dev/github.com/lgosse/goforge/otel) | Explicit OpenTelemetry traces, metrics, logs, and lifecycle | Available |
 | [`forgemongo`](https://pkg.go.dev/github.com/lgosse/goforge/forgemongo) | Typed MongoDB stores and mocks | Available |
 | [`forgesentry`](https://pkg.go.dev/github.com/lgosse/goforge/forgesentry) | `slog` integration for Sentry | Available |
 | [`linters`](./linters) | Shared lint rules | Scaffold |
@@ -40,6 +44,7 @@ Install each module independently:
 go get github.com/lgosse/goforge@latest
 go get github.com/lgosse/goforge/chassis@latest
 go get github.com/lgosse/goforge/httpclient@latest
+go get github.com/lgosse/goforge/otel@latest
 ```
 
 ## Building an HTTP service
@@ -49,12 +54,18 @@ options. Services can opt into the standard GoForge stack or select individual
 middleware:
 
 ```go
-logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+telemetryConfig := forgeotel.DefaultConfig("users-api", localDevelopment)
+telemetryConfig.OTLP.Endpoint = "otel-collector.internal:4317" // Production only.
+telemetry, err := forgeotel.New(ctx, telemetryConfig)
+if err != nil {
+	return err
+}
+defer telemetry.Shutdown(context.Background())
 
 mux := chassis.NewServeMux(
 	chassis.WithDefaultChassis(),
-	chassis.WithOpenTelemetry(),
-	chassis.WithLogger(logger),
+	chassis.WithOpenTelemetry(telemetry.HTTPServerOptions()...),
+	chassis.WithLogger(telemetry.Logger()),
 	chassis.WithCORS(httpmiddlewares.CORSConfig{
 		AllowedOrigins: []string{"https://app.example.com"},
 	}),
@@ -85,7 +96,7 @@ be composed:
 client := httpclient.NewClient(
 	httpclient.WithTimeout(10*time.Second),
 	httpclient.WithAPIKey("X-API-Key", os.Getenv("SERVICE_API_KEY")),
-	httpclient.WithTelemetry(),
+	httpclient.WithTelemetry(telemetry.HTTPClientOptions()...),
 )
 
 user, err := httpclient.Call[User](
@@ -116,6 +127,7 @@ prefixed by their directory:
 chassis/v0.3.0
 httpclient/v0.3.0
 forgemongo/v0.3.0
+otel/v0.3.0
 ```
 
 Releasing one module does not require releasing every module.

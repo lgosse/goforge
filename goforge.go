@@ -18,6 +18,12 @@
 // instrumentation. httpclient.Call can then form the typed JSON execution
 // layer beneath small service-specific SDKs.
 //
+// The otel module supplies the explicit trace, metric, and log providers used
+// by both HTTP foundations. A service normally constructs one otel.Runtime at
+// startup, passes its server options and logger to chassis, passes its client
+// options to httpclient, and shuts the runtime down during graceful
+// termination.
+//
 // The storage, messaging, error-reporting, and tooling modules complement
 // these inbound and outbound foundations. Each module is independently
 // versioned, so applications can adopt only the integrations they need while
