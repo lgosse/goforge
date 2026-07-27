@@ -15,8 +15,18 @@ func WithLogger(ctx context.Context, logger *slog.Logger) context.Context {
 // LoggerFromContext retrieves the logger from the context.
 // If no logger is found, it returns a default logger.
 func LoggerFromContext(ctx context.Context) *slog.Logger {
-	if logger, ok := ctx.Value(loggerContextKey{}).(*slog.Logger); ok {
+	return LoggerFromContextOr(ctx, nil)
+}
+
+// LoggerFromContextOr retrieves the logger from the context, falling back to
+// fallback when no logger is present. A nil fallback uses the default logger.
+func LoggerFromContextOr(ctx context.Context, fallback *slog.Logger) *slog.Logger {
+	if logger, ok := ctx.Value(loggerContextKey{}).(*slog.Logger); ok && logger != nil {
 		return logger
+	}
+
+	if fallback != nil {
+		return fallback
 	}
 
 	return slog.New(slog.Default().Handler())
