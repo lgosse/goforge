@@ -1,5 +1,3 @@
-// Package httpclient provides resilient, observable HTTP clients and a
-// type-safe JSON request executor.
 package httpclient
 
 import (

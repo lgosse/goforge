@@ -40,7 +40,7 @@ func (t requestRouteAttrsTracker) LogValue() slog.Value {
 		return slog.GroupValue(slog.String("route", ""))
 	}
 
-	attrs := []slog.Attr{slog.Any("route", requestPatternTracker{request: t.request})}
+	attrs := []slog.Attr{slog.Any("route", requestPatternTracker(t))}
 	for _, m := range pathWildcardRe.FindAllStringSubmatch(t.request.Pattern, -1) {
 		key := m[1]
 		if val := t.request.PathValue(key); val != "" {

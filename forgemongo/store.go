@@ -1,5 +1,3 @@
-// Package forgemongo provides a typed, generic store built on the MongoDB Go
-// Driver.
 package forgemongo
 
 import (
