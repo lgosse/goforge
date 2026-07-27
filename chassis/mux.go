@@ -20,6 +20,7 @@ type serveMuxConfig struct {
 	cors          *corsConfig
 	apiKey        *apiKeyConfig
 	sharedCaching *sharedCachingConfig
+	middlewares   []middleware
 }
 
 type loggerConfig struct {
@@ -69,7 +70,7 @@ func NewServeMux(opts ...Option) *ServeMux {
 		}
 	}
 
-	middlewares := make([]middleware, 0, 5)
+	middlewares := make([]middleware, 0, 5+len(config.middlewares))
 	corsMiddlewareCount := 0
 	if config.logger != nil {
 		middlewares = append(
@@ -116,6 +117,7 @@ func NewServeMux(opts ...Option) *ServeMux {
 			),
 		)
 	}
+	middlewares = append(middlewares, config.middlewares...)
 
 	serveMux := &ServeMux{
 		mux:         http.NewServeMux(),
@@ -252,6 +254,21 @@ func WithSharedCaching(
 			subdomain:   subdomain,
 			redisClient: redisClient,
 			options:     append([]httpmiddlewares.MiddlewareOption(nil), opts...),
+		}
+	}
+}
+
+// WithMiddleware adds arbitrary HTTP middlewares after the configured goforge
+// middlewares. Middlewares run in the order provided whenever the preceding
+// goforge middlewares delegate to the next handler.
+func WithMiddleware(middlewares ...func(http.Handler) http.Handler) Option {
+	return func(config *serveMuxConfig) {
+		for _, nextMiddleware := range middlewares {
+			if nextMiddleware == nil {
+				panic("chassis: nil middleware")
+			}
+
+			config.middlewares = append(config.middlewares, nextMiddleware)
 		}
 	}
 }

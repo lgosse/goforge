@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/lgosse/goforge/httpmiddlewares"
@@ -268,4 +269,77 @@ func TestServeMuxRejectsNilHandlerFunc(t *testing.T) {
 	}()
 
 	mux.HandleFunc("GET /tasks", nil)
+}
+
+func TestWithMiddlewareAppliesArbitraryMiddlewaresInOrder(t *testing.T) {
+	var calls []string
+	first := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls = append(calls, "first before")
+			next.ServeHTTP(w, r)
+			calls = append(calls, "first after")
+		})
+	}
+	second := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls = append(calls, "second before")
+			next.ServeHTTP(w, r)
+			calls = append(calls, "second after")
+		})
+	}
+
+	mux := chassis.NewServeMux(chassis.WithMiddleware(first, second))
+	mux.HandleFunc("GET /tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, "handler "+r.Pattern+" "+r.PathValue("id"))
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(
+		recorder,
+		httptest.NewRequest(http.MethodGet, "/tasks/task-1", nil),
+	)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+
+	expected := "first before,second before,handler GET /tasks/{id} task-1,second after,first after"
+	if strings.Join(calls, ",") != expected {
+		t.Fatalf("expected calls %q, got %q", expected, strings.Join(calls, ","))
+	}
+}
+
+func TestWithMiddlewareRunsInsideRecovery(t *testing.T) {
+	mux := chassis.NewServeMux(
+		chassis.WithRecover(),
+		chassis.WithMiddleware(func(http.Handler) http.Handler {
+			return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				panic("boom")
+			})
+		}),
+	)
+	mux.HandleFunc("GET /panic", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(
+		recorder,
+		httptest.NewRequest(http.MethodGet, "/panic", nil),
+	)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
+	}
+}
+
+func TestWithMiddlewareRejectsNilMiddleware(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected nil middleware configuration to panic")
+		}
+	}()
+
+	chassis.NewServeMux(chassis.WithMiddleware(nil))
 }
