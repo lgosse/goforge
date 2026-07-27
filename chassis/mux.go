@@ -195,7 +195,8 @@ func (m *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // WithOpenTelemetry enables OpenTelemetry server tracing and metrics. Options
-// are forwarded directly to otelhttp.
+// are forwarded directly to otelhttp; the otel module supplies explicit
+// production-ready provider options.
 func WithOpenTelemetry(opts ...otelhttp.Option) Option {
 	return func(config *serveMuxConfig) {
 		config.openTelemetry = &openTelemetryConfig{

@@ -18,12 +18,18 @@ go get github.com/lgosse/goforge/chassis@latest
 ## Quick start
 
 ```go
-logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+telemetryConfig := forgeotel.DefaultConfig("orders-api", localDevelopment)
+telemetryConfig.OTLP.Endpoint = "otel-collector.internal:4317" // Production only.
+telemetry, err := forgeotel.New(context.Background(), telemetryConfig)
+if err != nil {
+	log.Fatal(err)
+}
+defer telemetry.Shutdown(context.Background())
 
 mux := chassis.NewServeMux(
 	chassis.WithDefaultChassis(),
-	chassis.WithOpenTelemetry(),
-	chassis.WithLogger(logger),
+	chassis.WithOpenTelemetry(telemetry.HTTPServerOptions()...),
+	chassis.WithLogger(telemetry.Logger()),
 	chassis.WithCORS(httpmiddlewares.CORSConfig{
 		AllowedOrigins: []string{"https://app.example.com"},
 		AllowedMethods: []string{http.MethodGet, http.MethodPost},
@@ -61,6 +67,11 @@ log.Fatal(server.ListenAndServe())
 | `WithAPIKey` | Requires an `X-Api-Key` header |
 | `WithSharedCaching` | Adds Redis-backed shared response caching |
 | `WithMiddleware` | Appends arbitrary `func(http.Handler) http.Handler` middleware |
+
+The [`otel`](https://pkg.go.dev/github.com/lgosse/goforge/otel) module provides
+explicit production and local-development providers for `WithOpenTelemetry`.
+Calling the option without a provider uses OpenTelemetry's process-wide
+provider, which is a no-op until the application configures it.
 
 Explicit logger and recovery options override their default-chassis
 counterparts regardless of option order.

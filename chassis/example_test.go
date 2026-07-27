@@ -26,8 +26,8 @@ func ExampleNewServeMux() {
 		// Start with the recommended request logger and panic recovery.
 		chassis.WithDefaultChassis(),
 
-		// Enable server spans. The global OpenTelemetry provider is used unless
-		// otelhttp options are supplied.
+		// Enable server spans. A service using github.com/lgosse/goforge/otel
+		// normally passes telemetry.HTTPServerOptions()... here.
 		chassis.WithOpenTelemetry(),
 
 		// Explicit options override their default-chassis counterparts.
