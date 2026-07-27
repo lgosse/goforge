@@ -1,8 +1,8 @@
-# GoForge
+# goforge
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/lgosse/goforge.svg)](https://pkg.go.dev/github.com/lgosse/goforge)
 
-GoForge is a collection of small, composable Go modules for building HTTP
+goforge is a collection of small, composable Go modules for building HTTP
 services with the standard library. It standardizes recurring service concerns
 without introducing a web framework or hiding the underlying Go APIs.
 
@@ -30,10 +30,6 @@ Applications only need to depend on the pieces they use.
 | [`httpclient`](https://pkg.go.dev/github.com/lgosse/goforge/httpclient) | Configured HTTP clients and typed JSON calls | Available |
 | [`forgemongo`](https://pkg.go.dev/github.com/lgosse/goforge/forgemongo) | Typed MongoDB stores and mocks | Available |
 | [`forgesentry`](https://pkg.go.dev/github.com/lgosse/goforge/forgesentry) | `slog` integration for Sentry | Available |
-| [`forgekafka`](./forgekafka) | Kafka producer and consumer foundations | Scaffold |
-| [`forgeredis`](./forgeredis) | Redis client and caching foundations | Scaffold |
-| [`endpointregistry`](./endpointregistry) | Service endpoint registry | Scaffold |
-| [`golem`](./golem) | GoForge developer CLI | Scaffold |
 | [`linters`](./linters) | Shared lint rules | Scaffold |
 
 ## Install
