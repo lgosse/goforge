@@ -7,6 +7,7 @@ import (
 
 	"github.com/lgosse/goforge/httpmiddlewares"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type middleware func(http.Handler) http.Handler
@@ -15,12 +16,17 @@ type middleware func(http.Handler) http.Handler
 type Option func(*serveMuxConfig)
 
 type serveMuxConfig struct {
+	openTelemetry *openTelemetryConfig
 	logger        *loggerConfig
 	recover       *recoverConfig
 	cors          *corsConfig
 	apiKey        *apiKeyConfig
 	sharedCaching *sharedCachingConfig
 	middlewares   []middleware
+}
+
+type openTelemetryConfig struct {
+	options []otelhttp.Option
 }
 
 type loggerConfig struct {
@@ -70,8 +76,16 @@ func NewServeMux(opts ...Option) *ServeMux {
 		}
 	}
 
-	middlewares := make([]middleware, 0, 5+len(config.middlewares))
+	middlewares := make([]middleware, 0, 6+len(config.middlewares))
 	corsMiddlewareCount := 0
+	if config.openTelemetry != nil {
+		middlewares = append(
+			middlewares,
+			httpmiddlewares.OpenTelemetryMiddleware(
+				config.openTelemetry.options...,
+			),
+		)
+	}
 	if config.logger != nil {
 		middlewares = append(
 			middlewares,
@@ -178,6 +192,16 @@ func (m *ServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m.mux.ServeHTTP(w, r)
+}
+
+// WithOpenTelemetry enables OpenTelemetry server tracing and metrics. Options
+// are forwarded directly to otelhttp.
+func WithOpenTelemetry(opts ...otelhttp.Option) Option {
+	return func(config *serveMuxConfig) {
+		config.openTelemetry = &openTelemetryConfig{
+			options: append([]otelhttp.Option(nil), opts...),
+		}
+	}
 }
 
 // WithDefaultChassis enables the request logger and panic recovery

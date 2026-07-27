@@ -2,14 +2,21 @@ package chassis_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/lgosse/goforge"
 	"github.com/lgosse/goforge/httpmiddlewares"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/lgosse/goforge/chassis"
 )
@@ -33,6 +40,116 @@ func TestNewServeMuxWithoutOptionsIsNaked(t *testing.T) {
 
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+}
+
+func TestWithOpenTelemetryInstrumentsRegisteredRoute(t *testing.T) {
+	spanRecorder := tracetest.NewSpanRecorder()
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(spanRecorder),
+	)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := tracerProvider.Shutdown(ctx); err != nil {
+			t.Fatalf("failed to shut down tracer provider: %v", err)
+		}
+	})
+
+	var spanContext trace.SpanContext
+	mux := chassis.NewServeMux(
+		chassis.WithOpenTelemetry(
+			otelhttp.WithTracerProvider(tracerProvider),
+		),
+	)
+	mux.HandleFunc("GET /tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		spanContext = trace.SpanContextFromContext(r.Context())
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(
+		recorder,
+		httptest.NewRequest(http.MethodGet, "/tasks/task-1", nil),
+	)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+	if !spanContext.IsValid() {
+		t.Fatal("expected a valid span context in the handler")
+	}
+
+	spans := spanRecorder.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("expected one ended span, got %d", len(spans))
+	}
+	if spans[0].Name() != "GET /tasks/{id}" {
+		t.Fatalf("expected route-based span name %q, got %q", "GET /tasks/{id}", spans[0].Name())
+	}
+}
+
+func TestWithOpenTelemetryAddsTraceContextToRequestLogger(t *testing.T) {
+	spanRecorder := tracetest.NewSpanRecorder()
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(spanRecorder),
+	)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := tracerProvider.Shutdown(ctx); err != nil {
+			t.Fatalf("failed to shut down tracer provider: %v", err)
+		}
+	})
+
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logBuffer, nil))
+	mux := chassis.NewServeMux(
+		chassis.WithLogger(logger),
+		chassis.WithOpenTelemetry(
+			otelhttp.WithTracerProvider(tracerProvider),
+		),
+	)
+	mux.HandleFunc("GET /tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		goforge.LoggerFromContext(r.Context()).Info("request handled")
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(
+		recorder,
+		httptest.NewRequest(http.MethodGet, "/tasks/task-1", nil),
+	)
+
+	spans := spanRecorder.Ended()
+	if len(spans) != 1 {
+		t.Fatalf("expected one ended span, got %d", len(spans))
+	}
+
+	var entry map[string]any
+	if err := json.NewDecoder(&logBuffer).Decode(&entry); err != nil {
+		t.Fatalf("failed to decode request log: %v", err)
+	}
+
+	httpRequest, ok := entry["http_request"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected http_request object, got %#v", entry["http_request"])
+	}
+
+	spanContext := spans[0].SpanContext()
+	if httpRequest["trace_id"] != spanContext.TraceID().String() {
+		t.Fatalf(
+			"expected trace ID %q, got %#v",
+			spanContext.TraceID().String(),
+			httpRequest["trace_id"],
+		)
+	}
+	if httpRequest["span_id"] != spanContext.SpanID().String() {
+		t.Fatalf(
+			"expected span ID %q, got %#v",
+			spanContext.SpanID().String(),
+			httpRequest["span_id"],
+		)
 	}
 }
 
