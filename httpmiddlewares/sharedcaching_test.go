@@ -16,13 +16,10 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSharedCaching(t *testing.T) {
-	restoreSharedCachingLogLevel(t)
-
 	for _, d := range []struct {
 		name                  string
 		excludes              map[string][]string
@@ -351,11 +348,13 @@ func TestSharedCaching(t *testing.T) {
 			cacheKey := ""
 
 			var opts middlewareOptions
+			excludedPatterns := make([]string, 0, len(d.excludes))
 			for pattern, methods := range d.excludes {
 				for _, method := range methods {
-					opts.excludes[method+" "+pattern] = struct{}{}
+					excludedPatterns = append(excludedPatterns, method+" "+pattern)
 				}
 			}
+			WithMuxPatternExclusion(excludedPatterns...)(&opts)
 			middleware := sharedCaching(logger, "api.side.co", store, opts)
 
 			handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -370,6 +369,7 @@ func TestSharedCaching(t *testing.T) {
 			}))
 
 			firstRequest := httptest.NewRequest(http.MethodGet, "http://example.com"+d.firstTarget, nil)
+			firstRequest.Pattern = firstRequest.Method + " " + firstRequest.URL.Path
 			for key, values := range d.firstHeaders {
 				for _, value := range values {
 					firstRequest.Header.Add(key, value)
@@ -411,6 +411,7 @@ func TestSharedCaching(t *testing.T) {
 			}
 
 			secondRequest := httptest.NewRequest(http.MethodGet, "http://example.com"+d.secondTarget, nil)
+			secondRequest.Pattern = secondRequest.Method + " " + secondRequest.URL.Path
 			for key, values := range d.secondHeaders {
 				for _, value := range values {
 					secondRequest.Header.Add(key, value)
@@ -435,6 +436,7 @@ func TestSharedCaching(t *testing.T) {
 			var thirdRequest *http.Request
 			if d.thirdTarget != "" {
 				thirdRequest = httptest.NewRequest(http.MethodGet, "http://example.com"+d.thirdTarget, nil)
+				thirdRequest.Pattern = thirdRequest.Method + " " + thirdRequest.URL.Path
 				for key, values := range d.thirdHeaders {
 					for _, value := range values {
 						thirdRequest.Header.Add(key, value)
@@ -603,38 +605,38 @@ func decodeSharedCacheLogs(t *testing.T, buffer *bytes.Buffer) []map[string]any 
 func assertSharedCacheHitLog(t *testing.T, entry map[string]any, cacheKey, freshness string, revalidationTriggered bool) {
 	t.Helper()
 
-	assert.Equal(t, "shared cache hit", entry["message"])
+	cache := sharedCacheLogGroup(t, entry)
+
+	assert.Equal(t, "shared cache hit", entry["msg"])
 	assert.Equal(t, sharedCachingMiddlewareName, entry["middleware"])
-	assert.Equal(t, cacheKey, entry["cache_key"])
-	assert.Equal(t, "hit", entry["cache_state"])
-	assert.Equal(t, freshness, entry["cache_freshness"])
-	assert.Equal(t, revalidationTriggered, entry["cache_revalidation_triggered"])
-	assert.Contains(t, entry, "cache_age_seconds")
-	assert.Contains(t, entry, "cache_max_age_seconds")
-	assert.Contains(t, entry, "cache_stale_while_revalidate_seconds")
+	assert.Equal(t, cacheKey, cache["key"])
+	assert.Equal(t, "hit", cache["state"])
+	assert.Equal(t, freshness, cache["freshness"])
+	assert.Equal(t, revalidationTriggered, cache["revalidation_triggered"])
+	assert.Contains(t, cache, "age_seconds")
+	assert.Contains(t, cache, "max_age_seconds")
+	assert.Contains(t, cache, "stale_while_revalidate_seconds")
 }
 
 func assertSharedCacheErrorLog(t *testing.T, entry map[string]any, cacheKey, operation string) {
 	t.Helper()
 
-	assert.Equal(t, "shared cache error", entry["message"])
+	cache := sharedCacheLogGroup(t, entry)
+
+	assert.Equal(t, "shared cache error", entry["msg"])
 	assert.Equal(t, sharedCachingMiddlewareName, entry["middleware"])
-	assert.Equal(t, cacheKey, entry["cache_key"])
-	assert.Equal(t, operation, entry["cache_operation"])
-	assert.Contains(t, entry, "error")
+	assert.Equal(t, cacheKey, cache["key"])
+	assert.Equal(t, operation, cache["operation"])
+	assert.Contains(t, cache, "error")
 }
 
-func restoreSharedCachingLogLevel(t *testing.T) {
+func sharedCacheLogGroup(t *testing.T, entry map[string]any) map[string]any {
 	t.Helper()
 
-	previousLevel := zerolog.GlobalLevel()
-	previousErrorMarshalFunc := zerolog.ErrorMarshalFunc
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	zerolog.ErrorMarshalFunc = func(err error) any {
-		return err.Error()
+	cache, ok := entry["cache"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected cache log group, got %#v", entry["cache"])
 	}
-	t.Cleanup(func() {
-		zerolog.SetGlobalLevel(previousLevel)
-		zerolog.ErrorMarshalFunc = previousErrorMarshalFunc
-	})
+
+	return cache
 }
