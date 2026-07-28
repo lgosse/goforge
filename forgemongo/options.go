@@ -2,14 +2,17 @@ package forgemongo
 
 // QueryConfig is the configuration assembled by query options.
 //
-// Filter and sort values are stored as any so options such as [WithLimit] do
-// not require explicit generic type arguments. A Store validates their concrete
-// types against its F and S parameters before calling MongoDB.
+// Filter, sort, and projection values are stored as any so options such as
+// [WithLimit] do not require explicit generic type arguments. A Store validates
+// filter and sort concrete types against its F and S parameters before calling
+// MongoDB.
 type QueryConfig struct {
 	// Filters contains the MongoDB filters to combine.
 	Filters []any
 	// Sort contains the MongoDB sort document.
 	Sort any
+	// Projection contains the MongoDB projection document.
+	Projection any
 	// Limit bounds the number of returned documents.
 	Limit *int64
 	// Skip offsets the returned documents.
@@ -32,6 +35,15 @@ func WithFilter[F any](filter F) Option {
 func WithSort[S any](sort S) Option {
 	return func(config *QueryConfig) {
 		config.Sort = sort
+	}
+}
+
+// WithProjection sets the MongoDB projection document for read operations.
+// Excluded fields decode to zero values in the store entity type. When called
+// multiple times, the last projection takes precedence.
+func WithProjection(projection any) Option {
+	return func(config *QueryConfig) {
+		config.Projection = projection
 	}
 }
 

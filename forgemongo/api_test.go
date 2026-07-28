@@ -3,6 +3,8 @@ package forgemongo_test
 import (
 	"testing"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"github.com/lgosse/goforge/forgemongo"
 )
 
@@ -28,6 +30,7 @@ func TestPublicOptionsAPICompiles(t *testing.T) {
 	opts := []forgemongo.Option{
 		forgemongo.WithFilter(apiFilter{ID: "entity-id"}),
 		forgemongo.WithSort(apiSort{ID: 1}),
+		forgemongo.WithProjection(bson.D{{Key: "_id", Value: 1}}),
 		forgemongo.WithLimit(10),
 		forgemongo.WithSkip(20),
 		forgemongo.WithAllDocuments(),
@@ -38,7 +41,7 @@ func TestPublicOptionsAPICompiles(t *testing.T) {
 	if store == nil {
 		t.Fatal("NewStore returned a nil Store")
 	}
-	if len(opts) != 5 {
-		t.Fatalf("got %d options, want 5", len(opts))
+	if len(opts) != 6 {
+		t.Fatalf("got %d options, want 6", len(opts))
 	}
 }

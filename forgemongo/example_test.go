@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"github.com/lgosse/goforge/forgemongo"
 )
 
@@ -38,6 +40,7 @@ func ExampleNewMock() {
 	user, err := store.FindOne(
 		context.Background(),
 		forgemongo.WithFilter(exampleUserFilter{ID: "user-1"}),
+		forgemongo.WithProjection(bson.D{{Key: "_id", Value: 1}}),
 	)
 	if err != nil {
 		fmt.Println(err)
@@ -47,7 +50,7 @@ func ExampleNewMock() {
 	fmt.Println(user.ID)
 	fmt.Println("find calls:", store.Calls().FindOne)
 	// Output:
-	// query options: 1
+	// query options: 2
 	// user-1
 	// find calls: 1
 }

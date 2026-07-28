@@ -25,11 +25,16 @@ func TestCompileQuery(t *testing.T) {
 	firstFilter := testFilter{ID: "first"}
 	secondFilter := testFilter{ID: "second"}
 	sort := testSort{CreatedAt: -1}
+	projection := bson.D{
+		{Key: "_id", Value: 1},
+		{Key: "createdAt", Value: 1},
+	}
 
 	query, err := compileQuery[testFilter, testSort]([]Option{
 		WithFilter(firstFilter),
 		WithFilter(secondFilter),
 		WithSort(sort),
+		WithProjection(projection),
 		WithLimit(25),
 		WithSkip(50),
 	})
@@ -47,11 +52,13 @@ func TestCompileQuery(t *testing.T) {
 	assert.Equal(t, int64(25), *findOptions.Limit)
 	assert.Equal(t, int64(50), *findOptions.Skip)
 	assert.Equal(t, sort, findOptions.Sort)
+	assert.Equal(t, projection, findOptions.Projection)
 
 	findOneOptions := applyFindOneOptions(t, query.findOneOptions())
 	require.NotNil(t, findOneOptions.Skip)
 	assert.Equal(t, int64(50), *findOneOptions.Skip)
 	assert.Equal(t, sort, findOneOptions.Sort)
+	assert.Equal(t, projection, findOneOptions.Projection)
 
 	updateOptions := applyUpdateOneOptions(t, query.updateOneOptions())
 	assert.Equal(t, sort, updateOptions.Sort)
@@ -136,6 +143,13 @@ func TestCompiledQueryRejectsReadOptionsForWrites(t *testing.T) {
 			option: WithSkip(10),
 		},
 		{
+			name:      "projection",
+			allowSort: true,
+			option: WithProjection(bson.D{
+				{Key: "_id", Value: 1},
+			}),
+		},
+		{
 			name:   "sort on bulk write",
 			option: WithSort(testSort{CreatedAt: 1}),
 		},
@@ -156,6 +170,22 @@ func TestCompiledQueryRejectsReadOptionsForWrites(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, query.validateWrite(true))
+}
+
+func TestCompileQueryUsesLastProjection(t *testing.T) {
+	first := bson.D{{Key: "_id", Value: 1}}
+	second := struct {
+		Name int `bson:"name"`
+	}{Name: 1}
+
+	query, err := compileQuery[testFilter, testSort]([]Option{
+		WithProjection(first),
+		WithProjection(second),
+	})
+	require.NoError(t, err)
+
+	findOptions := applyFindOptions(t, query.findOptions())
+	assert.Equal(t, second, findOptions.Projection)
 }
 
 func applyFindOptions(t *testing.T, builder *options.FindOptionsBuilder) *options.FindOptions {

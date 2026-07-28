@@ -102,6 +102,25 @@ fmt.Println(len(activeUsers))
 Multiple filters are combined with `$or`. Filter and sort values are checked
 against the store's generic types before the database is called.
 
+Use `WithProjection` to select the fields returned by `FindOne`, `FindMany`, or
+`Stream`:
+
+```go
+users, err := users.FindMany(
+	ctx,
+	forgemongo.WithFilter(UserFilter{Status: "active"}),
+	forgemongo.WithProjection(bson.D{
+		{Key: "_id", Value: 1},
+		{Key: "status", Value: 1},
+	}),
+)
+```
+
+Projection documents are passed directly to MongoDB and may be expressed as
+`bson.D`, `bson.M`, or a struct. When multiple projections are supplied, the
+last one takes precedence. Fields excluded by the projection decode to their
+zero values in the store's entity type.
+
 Use `Stream` when results should be decoded incrementally:
 
 ```go

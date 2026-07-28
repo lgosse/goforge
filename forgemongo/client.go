@@ -348,6 +348,7 @@ func (s *mongoStore[T, F, S, P]) ready() error {
 type compiledQuery struct {
 	filter            any
 	sort              any
+	projection        any
 	limit             *int64
 	skip              *int64
 	hasFilters        bool
@@ -418,6 +419,7 @@ func compileQuery[F, S any](opts []Option) (compiledQuery, error) {
 	return compiledQuery{
 		filter:            filter,
 		sort:              sort,
+		projection:        config.Projection,
 		limit:             limit,
 		skip:              skip,
 		hasFilters:        len(filters) > 0,
@@ -429,6 +431,9 @@ func (q compiledQuery) findOptions() *mongooptions.FindOptionsBuilder {
 	findOptions := mongooptions.Find()
 	if q.sort != nil {
 		findOptions.SetSort(q.sort)
+	}
+	if q.projection != nil {
+		findOptions.SetProjection(q.projection)
 	}
 	if q.limit != nil {
 		findOptions.SetLimit(*q.limit)
@@ -444,6 +449,9 @@ func (q compiledQuery) findOneOptions() *mongooptions.FindOneOptionsBuilder {
 	findOneOptions := mongooptions.FindOne()
 	if q.sort != nil {
 		findOneOptions.SetSort(q.sort)
+	}
+	if q.projection != nil {
+		findOneOptions.SetProjection(q.projection)
 	}
 	if q.skip != nil {
 		findOneOptions.SetSkip(*q.skip)
@@ -467,6 +475,9 @@ func (q compiledQuery) validateWrite(allowSort bool) error {
 	}
 	if q.skip != nil {
 		return errors.New("forgemongo: WithSkip is not valid for write operations")
+	}
+	if q.projection != nil {
+		return errors.New("forgemongo: WithProjection is not valid for write operations")
 	}
 	if q.sort != nil && !allowSort {
 		return errors.New("forgemongo: WithSort is only valid for PatchOne writes")
