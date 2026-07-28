@@ -84,6 +84,26 @@ client := httpclient.NewClient(
 `InstallGlobals` is available for libraries that only consult process-wide
 OpenTelemetry state. Prefer the explicit options above in application code.
 
+## MongoDB integration
+
+The independently versioned
+[`otel/mongo`](https://pkg.go.dev/github.com/lgosse/goforge/otel/mongo) module
+connects this runtime's explicit trace and metric providers to MongoDB Go
+Driver v2:
+
+```go
+monitor, err := forgeotelmongo.NewMonitor(telemetry)
+if err != nil {
+	return err
+}
+
+clientOptions := mongooptions.Client().
+	ApplyURI(mongoURI).
+	SetMonitor(monitor)
+```
+
+The integration does not construct or manage the MongoDB client.
+
 ## Shutdown
 
 Call `Shutdown` with a bounded context during graceful process termination. It

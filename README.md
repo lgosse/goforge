@@ -32,6 +32,7 @@ Applications only need to depend on the pieces they use.
 | [`httpmiddlewares`](https://pkg.go.dev/github.com/lgosse/goforge/httpmiddlewares) | Standard `net/http` middleware | Available |
 | [`httpclient`](https://pkg.go.dev/github.com/lgosse/goforge/httpclient) | Configured HTTP clients and typed JSON calls | Available |
 | [`otel`](https://pkg.go.dev/github.com/lgosse/goforge/otel) | Explicit OpenTelemetry traces, metrics, logs, and lifecycle | Available |
+| [`otel/mongo`](https://pkg.go.dev/github.com/lgosse/goforge/otel/mongo) | MongoDB Go Driver v2 tracing and metrics | Available |
 | [`forgemongo`](https://pkg.go.dev/github.com/lgosse/goforge/forgemongo) | Typed MongoDB stores and mocks | Available |
 | [`forgesentry`](https://pkg.go.dev/github.com/lgosse/goforge/forgesentry) | `slog` integration for Sentry | Available |
 | [`linters`](./linters) | Shared lint rules | Scaffold |
@@ -45,6 +46,7 @@ go get github.com/lgosse/goforge@latest
 go get github.com/lgosse/goforge/chassis@latest
 go get github.com/lgosse/goforge/httpclient@latest
 go get github.com/lgosse/goforge/otel@latest
+go get github.com/lgosse/goforge/otel/mongo@latest
 ```
 
 ## Building an HTTP service
@@ -118,6 +120,27 @@ fmt.Println(user.ID)
 See the [`httpclient` README](./httpclient) for OAuth, request options, error
 mapping, and transport composition.
 
+## Instrumenting MongoDB
+
+The `otel/mongo` module adds tracing and operation-duration metrics to
+application-owned MongoDB Go Driver v2 clients:
+
+```go
+monitor, err := forgeotelmongo.NewMonitor(telemetry)
+if err != nil {
+	return err
+}
+
+mongoOptions := mongooptions.Client().
+	ApplyURI(mongoURI).
+	SetMonitor(monitor)
+
+mongoClient, err := mongo.Connect(mongoOptions)
+```
+
+GoForge configures the monitor, while the application continues to own client
+creation, health checks, and disconnection.
+
 ## Versioning
 
 The root module uses repository tags such as `v0.3.0`. Nested modules use tags
@@ -128,6 +151,7 @@ chassis/v0.3.0
 httpclient/v0.3.0
 forgemongo/v0.3.0
 otel/v0.3.0
+otel/mongo/v0.3.0
 ```
 
 Releasing one module does not require releasing every module.

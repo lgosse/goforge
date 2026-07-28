@@ -6,6 +6,8 @@
 // It exposes options that plug directly into the chassis and httpclient
 // OpenTelemetry middleware without relying on global providers or environment
 // configuration.
+// The independently versioned otel/mongo module connects these providers to
+// application-owned MongoDB Go Driver v2 clients.
 //
 // Use [DefaultConfig] with localDevelopment set to true for readable local
 // logs and providers that generate valid trace identifiers without requiring

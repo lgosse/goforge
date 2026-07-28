@@ -52,6 +52,36 @@ users := forgemongo.NewStore[User, UserFilter, UserSort, UserPatch](
 Update values are passed directly to the MongoDB driver. Define `$set`,
 `$push`, `$inc`, and other operators explicitly in the patch type.
 
+## Instrumenting the MongoDB client
+
+`forgemongo` does not initialize or own MongoDB clients. Applications that use
+the [`otel/mongo`](https://pkg.go.dev/github.com/lgosse/goforge/otel/mongo)
+module attach telemetry while constructing their driver options:
+
+```go
+monitor, err := forgeotelmongo.NewMonitor(telemetry)
+if err != nil {
+	return err
+}
+
+clientOptions := mongooptions.Client().
+	ApplyURI(mongoURI).
+	SetMonitor(monitor)
+
+client, err := mongo.Connect(clientOptions)
+if err != nil {
+	return err
+}
+
+users := forgemongo.NewStore[User, UserFilter, UserSort, UserPatch](
+	client.Database("users"),
+	"users",
+)
+```
+
+The application remains responsible for connecting, checking, and
+disconnecting the client.
+
 ## Querying
 
 ```go
