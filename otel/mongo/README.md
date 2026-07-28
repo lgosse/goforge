@@ -82,4 +82,4 @@ reviewed rather than following a moving pseudo-version.
 ## License
 
 This module is available under the repository's
-[MIT License](../../LICENCE.txt).
+[MIT License](./LICENCE.txt).

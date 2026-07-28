@@ -127,4 +127,4 @@ because the upstream Go SDK does not yet provide a profiles signal API.
 ## License
 
 This module is available under the repository's
-[MIT License](../LICENCE.txt).
+[MIT License](./LICENCE.txt).
